@@ -1,0 +1,249 @@
+---
+title: 'Introduction to Visualization in R'
+author: "Ayush Pandey"
+output:
+    html_document:
+      toc: true
+      toc_float:
+        collapsed: false
+        smooth_scroll: true
+      toc_depth: 4
+      theme: cosmo
+      highlight: tango
+---
+
+**ASCE T&DI Workshop** <br> 
+
+# **Dataset A**
+
+## Setting Up the Workspace
+
+### Libraries & Packages
+```{r}
+library(tidyverse)
+```
+### Load Data
+Load all the files and merge them into a single dataframe.
+
+```{r}
+df1 <- read.csv("C:/Users/johan/Box/05 Repositories/RLab/ASCE T&DI_Visualization in R/R-wrkshop_1.csv")
+df2 <- read.csv("C:/Users/johan/Box/05 Repositories/RLab/ASCE T&DI_Visualization in R/R-wrkshop_2.csv")
+df3 <- read.csv("C:/Users/johan/Box/05 Repositories/RLab/ASCE T&DI_Visualization in R/R-wrkshop_3.csv")
+df4 <- read.csv("C:/Users/johan/Box/05 Repositories/RLab/ASCE T&DI_Visualization in R/R-wrkshop_4.csv")
+
+df <- bind_rows(df1, df2, df3, df4)
+```
+
+## Exploratory Data Analysis
+
+### General Inspection
+```{r}
+names(df)
+
+View(df)
+
+df <- df %>% select(pickup_datetime, TNC, trip_miles, trip_time, base_passenger_fare, Zone_d, Borough)
+
+df %>% summary()
+
+df %>% filter(base_passenger_fare > 0) %>% summary()
+
+df %>% filter(base_passenger_fare > 0, trip_miles < 15) %>% summary()
+
+df <- df %>% 
+  filter(base_passenger_fare > 0, trip_miles < 15) %>% 
+  rename(fare = base_passenger_fare) %>% 
+  mutate(fare_per_mile = fare/trip_miles)
+```
+
+## Visualizing Data
+
+### Scattered Plot
+Let's start from scratch.
+
+```{r}
+df %>% 
+  # randomly pick 500 data points
+  sample_n(500) %>% 
+  # send this filtered data to ggplot
+  ggplot() +
+  # add a layer of scatter plot
+  geom_point(aes(x = trip_miles, y = trip_time))
+```
+<br>
+We can now add some colors, and a colormap.
+```{r}
+
+df %>% 
+  sample_n(500) %>% 
+  ggplot() +
+  geom_point(aes(x = trip_miles, y = trip_time, color = fare))
+```
+<br>
+### Regression Line
+Now let's add a regression line.
+
+```{r}
+df %>% 
+  sample_n(500) %>% 
+  ggplot() +
+  geom_point(aes(x = trip_miles, y = trip_time, color = fare)) +
+  geom_smooth(aes(x = trip_miles, y = trip_time))
+```
+<br>
+We could use another categorization for formatting the scatter plot, and build the regression lines accordingly.
+```{r}
+df %>% 
+  sample_n(500) %>% 
+  ggplot() +
+  geom_point(aes(x = trip_miles, y = trip_time, color = TNC)) +
+  geom_smooth(aes(x = trip_miles, y = trip_time, color = TNC))
+```
+
+<br>
+### Line Plot
+Let's try a line plot instead.
+```{r}
+df %>% 
+  ggplot() +
+  geom_density(aes(x = fare)) +
+  xlim(0, 100)
+```
+<br>
+We could fill the regions covered by the curve and set a transparency factor.
+```{r}
+df %>% 
+  ggplot() +
+  geom_density(aes(x = fare, fill = TNC), alpha = 0.5) +
+  xlim(0, 100)
+```
+<br>
+### Violin Plot
+```{r}
+df %>% 
+  ggplot() +
+  geom_violin(aes(x = TNC, y = fare_per_mile)) +
+  ylim(0, 50)
+```
+
+### Scattered Plot: A Different View
+```{r}
+df %>% 
+  sample_n(500) %>% 
+  mutate(hod = hour(pickup_datetime)) %>% 
+  ggplot() + 
+  geom_point(aes(x= hod, y = trip_time, color = TNC))
+```
+<br>
+Let's group the data before generating other visualizations:
+```{r}
+df %>% 
+  mutate(hod = hour(pickup_datetime)) %>% 
+  group_by(hod) %>% 
+  summarize(mean_trip_time = mean(trip_time),
+            mean_trip_miles = mean(trip_miles),
+            sd_trip_time = sd(trip_time),
+            sd_trip_miles = sd(trip_miles)) %>% 
+  summary()
+```
+<br>
+### Plotting Trends
+```{r}
+df %>% 
+  mutate(hod = hour(pickup_datetime)) %>% 
+  group_by(hod, TNC) %>% 
+  summarize(mean_trip_time = mean(trip_time),
+            mean_trip_miles = mean(trip_miles),
+            sd_trip_time = sd(trip_time),
+            sd_trip_miles = sd(trip_miles)) %>% 
+  ggplot() +
+  geom_point(aes(x = hod, y = mean_trip_time, color = TNC))
+```
+<br>
+### Line Plot (With Markers)
+```{r}
+df %>% 
+  mutate(hod = hour(pickup_datetime),
+         date = day(pickup_datetime)) %>% 
+  group_by(hod, date) %>% 
+  summarise(mean_trip_time = mean(trip_time)) %>% 
+  ggplot() + 
+  geom_point(aes(x = hod, y = mean_trip_time, color = factor(date)), alpha = 0.5) +
+  geom_line(aes(x = hod, y = mean_trip_time, color = factor(date)), alpha = 0.3) +
+  theme(legend.position = "none") +
+  xlab("Hour of Day") +
+  ylab("Average Trip Duration") +
+  ggtitle("Trip Duration by Hour of Day")
+```
+<br>
+
+# **Dataset B**
+
+## Setting Up the Workspace
+
+### Libraries & Packages
+```{r}
+library(sf)
+```
+
+### Load Data
+Load all the files and merge them into a single dataframe.
+
+```{r}
+shpf <- read_sf("C:/Users/johan/Box/05 Repositories/RLab/ASCE T&DI_Visualization in R/taxi_zones/taxi_zones.shp")
+```
+
+## Exploratory Data Analysis
+
+### General Inspection
+```{r}
+names(shpf)
+View(shpf)
+```
+## Visualizing Data
+
+### Map Plot
+The range of colors can be manually set from a low to high end.
+
+```{r}
+# Map plotted 
+shpf %>% 
+  ggplot() +
+  geom_sf(aes(fill = Shape_Area)) +
+  scale_fill_continuous(low = 'green', high = 'blue')
+```
+<br>
+We can group the data by zones to visualize the data in a different way.
+```{r}
+ndf <- df %>% 
+  group_by(Zone_d) %>% 
+  summarize(trips = n()) 
+```
+
+<br>
+Let's specify the number of zones as criteria for coloring the map. The color range will be based on the number of trips.
+```{r}
+merge(shpf, ndf, by.x = "zone", by.y = "Zone_d") %>% 
+  ggplot() +
+  geom_sf(aes(fill = trips))
+```
+<br>
+For clarity we could manually specify which colors should be used.
+```{r}
+merge(shpf, ndf, by.x = "zone", by.y = "Zone_d") %>% 
+  ggplot() +
+  geom_sf(aes(fill = trips)) + 
+  scale_fill_gradient2(low = 'red', mid = 'yellow', high = 'blue')
+```
+<br>
+There are also predefined colormaps that could enhance our visualizations.
+```{r}
+# Final plot with color categories
+merge(shpf, ndf, by.x = "zone", by.y = "Zone_d") %>% 
+  ggplot() +
+  geom_sf(aes(fill = trips)) + 
+  scale_fill_binned(guide = 'colorbar',
+                    breaks = as.numeric(quantile(ndf$trips)),
+                    type = 'viridis')
+```
+
